@@ -70,6 +70,7 @@ Window::Window(int X, int Y)
 	if (!InitFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"))
 		cout << "could not init the board" << endl;
 	drawBoard();
+	gout << refresh;
 }
 
 void Window::event_loop()
@@ -83,17 +84,12 @@ void Window::event_loop()
 			// handle board click
 			if (ev.pos_x < 8 * _tileSize)
 			{
-				if (selected.first == -1)
-				{
-					selected = getIndexFromPos(ev.pos_x, ev.pos_y);
-					if (selected.first)
-					{
-
-					}
-				}
+				std::pair<int,int> clicked = getIndexFromPos(ev.pos_x, ev.pos_y);
+				cout << clicked.first << " " << clicked.second << endl;
+				selected = clicked;
 			}
 			// draw board
-
+			drawBoard();
 			gout << refresh;
 		}
 	}
@@ -167,6 +163,8 @@ bool Window::InitFromFEN(std::string sFen)
 void Window::drawBoard()
 {
 	gout << stamp(_bg, 0, 0);
+	if (selected.first != -1)
+		gout << move_to(selected.first * _tileSize, selected.second * _tileSize) << color(Red) << box(_tileSize, _tileSize);
 	for (auto piece : mBoard)
 	{
 		for (size_t i = 0; i < 8; i++)
@@ -175,15 +173,14 @@ void Window::drawBoard()
 			{
 				if (piece.second[i][j])
 				{
-					gout << stamp(_pieces[piece.first], j * _tileSize, i * _tileSize);
+					gout << stamp(_pieces[piece.first], i * _tileSize, j * _tileSize);
 				}
 			}
 		}
 	}
-	gout << refresh;
 }
 
 std::pair<int, int> Window::getIndexFromPos(int x, int y)
 {
-	return std::pair<int, int>(8 * _tileSize / x, 8 * _tileSize / y);
+	return std::pair<int, int>(x / _tileSize, y / _tileSize);
 }
