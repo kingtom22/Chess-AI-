@@ -12,11 +12,10 @@ public:
 	void event_loop();
 	bool InitFromFEN(std::string sFen);
 	void drawBoard();
-private:
+private: // functions
 	std::pair<int, int> getIndexFromPos(int x, int y);
-	
-	std::vector<std::pair<int, int>> getPossibleMoves();
-private:
+	char getSelectedPieceType();
+private: // variables
 	int _maxX, _maxY, _tileSize;
 	genv::canvas _bg;
 	bool _quit;

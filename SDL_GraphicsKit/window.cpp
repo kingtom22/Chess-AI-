@@ -37,6 +37,57 @@ bool load_pieces(std::map<char, genv::canvas>& pieces)
 	else return false;
 }
 
+char getPieceFromPos(map<char, vector<vector<bool>>>& board, pair<int, int> from)
+{
+	for (auto piece : board)
+	{
+		if (piece.second[from.first][from.second])
+		{
+			return piece.first;
+		}
+	}
+	return 0;
+}
+
+vector<pair<int, int>> getLegalMoves(map<char, vector<vector<bool>>>& board, pair<int, int> from)
+{
+	char cPieceType = 0;
+	vector<pair<int, int>> result;
+	for (auto piece : board)
+	{
+		if (piece.second[from.first][from.second])
+		{
+			cPieceType = piece.first;
+			break;
+		}
+	}
+	switch (cPieceType)
+	{
+	case 'P':
+		// white pawn
+		if (!getPieceFromPos(board, pair<int, int>(from.first + 1, from.second))) 
+			// advance
+			result.push_back(pair<int, int>(from.first + 1, from.second));
+		if (from.first == 1 && !getPieceFromPos(board, pair<int, int>(from.first + 2, from.second)))
+			// double advance
+			result.push_back(pair<int, int>(from.first + 2, from.second));
+		break;
+	case 'p':
+		// black pawn
+		if (!getPieceFromPos(board, pair<int, int>(from.first - 1, from.second)))
+			// advance
+			result.push_back(pair<int, int>(from.first - 1, from.second));
+		if (from.first == 6 && !getPieceFromPos(board, pair<int, int>(from.first - 2, from.second)))
+			// double advance
+			result.push_back(pair<int, int>(from.first - 2, from.second));
+		break;
+	default:
+		cerr << "piece type was not found" << endl;
+		break;
+	}
+	return result;
+}
+
 Window::Window(int X, int Y)
 {
 	_maxX = X;
@@ -82,11 +133,42 @@ void Window::event_loop()
 		if (ev.type == ev_mouse && ev.button == btn_left)
 		{
 			// handle board click
-			if (ev.pos_x < 8 * _tileSize)
+			if (ev.pos_x < 8 * _tileSize) // inside board
 			{
 				std::pair<int,int> clicked = getIndexFromPos(ev.pos_x, ev.pos_y);
 				cout << clicked.first << " " << clicked.second << endl;
-				selected = clicked;
+				if (clicked == selected) selected = pair<int, int>(-1, -1); // clicked selected
+				else if (selected != pair<int, int>(-1, -1)) // try to move piece
+				{
+					cout << "try to move" << endl;
+					auto legal = getLegalMoves(mBoard, selected);
+					if (find(legal.begin(), legal.end(), clicked) != legal.end())
+					{ // move is legal, move the piece
+						char targetType = getPieceFromPos(mBoard, clicked);
+						if (targetType)
+						{ // kill
+							vector<vector<bool>> result = mBoard[targetType];
+							result[clicked.first][clicked.second] = false;
+							mBoard[targetType] = result;
+						}
+						// move
+						char selectedType = getPieceFromPos(mBoard, selected);
+						vector<vector<bool>> result = mBoard[selectedType];
+						result[selected.first][selected.second] = false;
+						result[clicked.first][clicked.second] = true;
+						mBoard[selectedType] = result;
+						selected = pair<int, int>(-1, -1);
+						bWhiteTurns = !bWhiteTurns;
+					}
+				}
+				else
+					for (auto piece : mBoard)
+						if (piece.second[clicked.first][clicked.second] &&
+							((isupper(piece.first) && bWhiteTurns) || (islower(piece.first) && !bWhiteTurns)))
+						{
+							selected = clicked;
+							break;
+						}
 			}
 			// draw board
 			drawBoard();
@@ -163,8 +245,17 @@ bool Window::InitFromFEN(std::string sFen)
 void Window::drawBoard()
 {
 	gout << stamp(_bg, 0, 0);
-	if (selected.first != -1)
+	if (selected.first != -1) // hihgtlight selected piece
+	{
 		gout << move_to(selected.first * _tileSize, selected.second * _tileSize) << color(Red) << box(_tileSize, _tileSize);
+		// hihgtlight possible moves
+		for (auto pos : getLegalMoves(mBoard, selected))
+		{
+			gout << color(Green);
+			gout << move_to(pos.first * _tileSize, pos.second * _tileSize) << box(_tileSize, _tileSize);
+		}
+	}
+	
 	for (auto piece : mBoard)
 	{
 		for (size_t i = 0; i < 8; i++)
@@ -183,4 +274,13 @@ void Window::drawBoard()
 std::pair<int, int> Window::getIndexFromPos(int x, int y)
 {
 	return std::pair<int, int>(x / _tileSize, y / _tileSize);
+}
+
+char Window::getSelectedPieceType()
+{
+	if (selected.first != -1)
+		for (auto board : mBoard)
+			if (board.second[selected.first][selected.second])
+				return board.first;
+	return 0;
 }
